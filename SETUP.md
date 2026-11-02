@@ -43,31 +43,44 @@ A web address such as `signage.yourstore.com` gives you:
 
 ## Part 3: Install the software
 
-You need the `store-signage.zip` file on your computer.
+The server downloads the code from your private GitHub repository, [Joseamorosi/nahuentv](https://github.com/Joseamorosi/nahuentv).
 
-**On your computer**, open a terminal (Mac: *Terminal*; Windows: *PowerShell*) and copy the file to the server. Replace `YOUR_IP` with the Droplet's IP:
-
-```bash
-scp store-signage.zip root@YOUR_IP:/root/
-```
-
-Type `yes` if asked, then enter the Droplet password. Next, log in to the server:
+**3.1 Log in to the server.** On your computer, open a terminal (Mac: *Terminal*; Windows: *PowerShell*). Replace `YOUR_IP` with the Droplet's IP:
 
 ```bash
 ssh root@YOUR_IP
 ```
 
-**Now you're on the server.** Unzip the file and run the installer (use your own web address):
+Type `yes` if asked, then enter the Droplet password. **Everything below runs on the server.**
+
+**3.2 Give the server permission to read your repository.** Create a key for the server:
 
 ```bash
-apt-get install -y unzip && unzip -o store-signage.zip && cd store-signage && bash install.sh signage.yourstore.com
+ssh-keygen -t ed25519 -N "" -f ~/.ssh/id_ed25519 && cat ~/.ssh/id_ed25519.pub
 ```
 
-No web address yet? Leave it off: `bash install.sh`. You can run it again with an address later.
+Copy the line it prints (it starts with `ssh-ed25519`). Then:
+- Open [https://github.com/Joseamorosi/nahuentv/settings/keys/new](https://github.com/Joseamorosi/nahuentv/settings/keys/new)
+- **Title:** `DigitalOcean server` · **Key:** paste the line · leave *Allow write access* **unchecked**
+- Click **Add key**
+
+**3.3 Download and install** (use your own web address):
+
+```bash
+git clone git@github.com:Joseamorosi/nahuentv.git && cd nahuentv && bash install.sh signage.yourstore.com
+```
+
+Type `yes` if it asks about GitHub's fingerprint. No web address yet? Leave it off: `bash install.sh`. You can run it again with an address later.
 
 When it finishes, it prints the address to open. Open it in your browser and **create your control panel password**.
 
-> **Updating later:** copy the new zip to the server the same way and run the same command again. Your media, playlists and settings are kept.
+> **Updating later** (after changes are pushed to GitHub): log in to the server and run
+>
+> ```bash
+> cd ~/nahuentv && git pull && bash install.sh
+> ```
+>
+> Your media, playlists, settings and web address are kept.
 
 ## Part 4: Set up a Fire TV Stick
 
