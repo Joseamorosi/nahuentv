@@ -542,6 +542,8 @@
   function mediaPicker() {
     if (!S.media.length) { toast('Upload images or videos on the Media tab first', true); return; }
     const picked = []; // media ids, in the order clicked
+    let pf = mediaFolder; // picker opens on the folder you last looked at
+    const visible = () => S.media.filter((m) => inFolder(m, pf)).map((m) => m.id);
     const body = openDialog(`
       <div class="row spread"><h2>Add to "${esc(draft.name)}"</h2>
         <div class="row">
@@ -550,8 +552,9 @@
           <button type="button" class="btn primary" id="pickDone" disabled>Add selected</button>
         </div></div>
       <p class="muted small">Click to select, click again to unselect. Items are added in the order you select them.</p>
+      ${S.folders.length ? `<div class="row folders" id="pickFolders">${folderChips(pf, 'pfolder')}</div>` : ''}
       <div class="media-grid picker">${S.media.map((m) => `
-        <div class="media-card" data-pick="${m.id}" role="button" tabindex="0" aria-pressed="false">${thumbHtml(m, 'preview')}
+        <div class="media-card ${inFolder(m, pf) ? '' : 'hidden'}" data-pick="${m.id}" role="button" tabindex="0" aria-pressed="false">${thumbHtml(m, 'preview')}
           <span class="pick-badge"></span>
           <div class="info"><span class="title">${esc(m.original_name)}</span><span class="muted small">${m.type === 'video' ? '🎬 Video' : '🖼 Image'}</span></div>
         </div>`).join('')}</div>`, true);
@@ -564,7 +567,8 @@
       });
       $('#pickDone', body).disabled = !picked.length;
       $('#pickDone', body).textContent = picked.length ? `Add ${picked.length} selected` : 'Add selected';
-      $('#pickAll', body).textContent = picked.length === S.media.length ? 'Clear selection' : 'Select all';
+      const vis = visible();
+      $('#pickAll', body).textContent = vis.length && vis.every((id) => picked.includes(id)) ? 'Clear selection' : 'Select all';
     };
     body.onclick = (e) => {
       const card = e.target.closest('[data-pick]');
@@ -572,9 +576,15 @@
         const id = Number(card.dataset.pick), i = picked.indexOf(id);
         if (i >= 0) picked.splice(i, 1); else picked.push(id);
         show();
+      } else if (e.target.closest('[data-pfolder]')) {
+        pf = parseFolder(e.target.closest('[data-pfolder]').dataset.pfolder);
+        $('#pickFolders', body).innerHTML = folderChips(pf, 'pfolder');
+        $$('[data-pick]', body).forEach((c) => c.classList.toggle('hidden', !inFolder(mediaById(Number(c.dataset.pick)), pf)));
+        show();
       } else if (e.target.closest('#pickAll')) {
-        if (picked.length === S.media.length) picked.length = 0;
-        else S.media.forEach((m) => { if (!picked.includes(m.id)) picked.push(m.id); });
+        const vis = visible();
+        if (vis.every((id) => picked.includes(id))) vis.forEach((id) => picked.splice(picked.indexOf(id), 1));
+        else vis.forEach((id) => { if (!picked.includes(id)) picked.push(id); });
         show();
       } else if (e.target.closest('#pickCancel')) {
         closeDialog();
@@ -596,18 +606,37 @@
   function defaultDuration() { const imgs = imageItems(); return imgs.length ? imgs[imgs.length - 1].duration : 10; }
 
   // ------------------------------------------------------------ MEDIA
+  let mediaFolder = 'all'; // 'all' | 'none' | folder id
+  const parseFolder = (v) => (v === 'all' || v === 'none' ? v : Number(v));
+  const inFolder = (m, f) => f === 'all' || (f === 'none' ? !m.folder_id : m.folder_id === f);
+  function folderChips(sel, attr) {
+    return [['all', 'All'], ['none', 'No folder'], ...S.folders.map((f) => [f.id, `📁 ${f.name}`])].map(([v, label]) =>
+      `<button type="button" class="chip ${v === sel ? 'active' : ''}" data-${attr}="${v}">${esc(label)} <span class="count">${S.media.filter((m) => inFolder(m, v)).length}</span></button>`).join('');
+  }
+
   function renderMedia() {
+    if (typeof mediaFolder === 'number' && !S.folders.some((f) => f.id === mediaFolder)) mediaFolder = 'all';
     const uses = (mid) => S.playlists.filter((p) => p.items.some((i) => i.media_id === mid)).length;
+    const folder = S.folders.find((f) => f.id === mediaFolder);
+    const shown = S.media.filter((m) => inFolder(m, mediaFolder));
+    const folderOpts = (m) => `<option value="">No folder</option>` + S.folders.map((f) =>
+      `<option value="${f.id}" ${m.folder_id === f.id ? 'selected' : ''}>${esc(f.name)}</option>`).join('');
     $('#tab-media').innerHTML = `
       <div class="bar"><h2>Media library</h2><span class="muted">${S.media.length} files</span></div>
+      <div class="row folders">${folderChips(mediaFolder, 'folder')}<button type="button" class="btn small" id="newFolder">+ New folder</button></div>
+      ${folder ? `<div class="row folders"><b>📁 ${esc(folder.name)}</b>
+        <button type="button" class="btn small" id="renameFolder">Rename folder</button>
+        <button type="button" class="btn small danger" id="deleteFolder">Delete folder</button></div>` : ''}
       <label class="drop" id="drop">
         <input type="file" id="fileInput" multiple accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime" hidden>
         <b>Click to upload</b> or drag files here<br>
-        <span class="muted small">Images: JPG, PNG, WEBP (best size 1920×1080). Videos: MP4 (H.264, 1080p works best).</span>
+        <span class="muted small">Images: JPG, PNG, WEBP (best size 1920×1080). Videos: MP4 (H.264, 1080p works best).</span><br>
+        <span class="small">Uploads go into: <b>${folder ? `📁 ${esc(folder.name)}` : 'No folder'}</b></span>
         <div class="progress hidden" id="prog"><div></div></div>
         <div class="small muted" id="progText"></div>
       </label>
-      <div class="media-grid">${S.media.map((m) => `
+      ${shown.length ? '' : '<p class="muted">No files here yet.</p>'}
+      <div class="media-grid">${shown.map((m) => `
         <div class="media-card">
           ${m.type === 'video' ? `<video class="preview" src="${esc(m.url)}#t=1" preload="metadata" muted playsinline controls></video>` : `<img class="preview" src="${esc(m.url)}" loading="lazy" alt="">`}
           <div class="info">
@@ -615,6 +644,7 @@
             <span class="muted small">${m.type === 'video' ? '🎬 Video' : '🖼 Image'} · ${fmtSize(m.size)} · in ${uses(m.id)} playlists</span>
           </div>
           <div class="actions">
+            ${S.folders.length ? `<select class="small" data-mfolder="${m.id}" aria-label="Folder for ${esc(m.original_name)}">${folderOpts(m)}</select>` : ''}
             <button class="btn small" data-rename="${m.id}">Rename</button>
             <button class="btn small danger" data-delmedia="${m.id}">Delete</button>
           </div>
@@ -649,15 +679,43 @@
       await refresh();
     };
     xhr.onerror = () => { fail(new Error('Upload failed. Check your connection.')); refresh(); };
-    xhr.open('POST', '/api/media');
+    xhr.open('POST', `/api/media${typeof mediaFolder === 'number' ? `?folder=${mediaFolder}` : ''}`);
     xhr.send(fd);
   }
+
+  $('#tab-media').addEventListener('change', async (e) => {
+    const sel = e.target.closest('[data-mfolder]');
+    if (!sel) return;
+    try {
+      await api('PATCH', `/api/media/${sel.dataset.mfolder}`, { folder_id: sel.value ? Number(sel.value) : null });
+      toast(sel.value ? `Moved to ${sel.selectedOptions[0].textContent}` : 'Moved out of the folder');
+      await refresh();
+    } catch (err) { fail(err); }
+  });
 
   $('#tab-media').addEventListener('click', async (e) => {
     const ren = e.target.closest('[data-rename]');
     const del = e.target.closest('[data-delmedia]');
+    const chip = e.target.closest('[data-folder]');
     try {
-      if (ren) {
+      if (chip) {
+        mediaFolder = parseFolder(chip.dataset.folder);
+        renderMedia();
+      } else if (e.target.closest('#newFolder')) {
+        const name = prompt('Folder name (for example "Menus" or "Promotions"):');
+        if (!name || !name.trim()) return;
+        const r = await api('POST', '/api/folders', { name });
+        mediaFolder = r.id; await refresh(); toast('Folder created. Uploads now go into it');
+      } else if (e.target.closest('#renameFolder')) {
+        const f = S.folders.find((x) => x.id === mediaFolder);
+        const name = prompt('New folder name:', f.name);
+        if (!name || !name.trim()) return;
+        await api('PATCH', `/api/folders/${f.id}`, { name }); await refresh();
+      } else if (e.target.closest('#deleteFolder')) {
+        const f = S.folders.find((x) => x.id === mediaFolder);
+        if (!confirm(`Delete the folder "${f.name}"? Its files are NOT deleted; they move to "No folder".`)) return;
+        await api('DELETE', `/api/folders/${f.id}`); mediaFolder = 'all'; await refresh(); toast('Folder deleted');
+      } else if (ren) {
         const m = mediaById(Number(ren.dataset.rename));
         const name = prompt('New name:', m.original_name);
         if (name && name.trim()) { await api('PATCH', `/api/media/${m.id}`, { name }); await refresh(); }

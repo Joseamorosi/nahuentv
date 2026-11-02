@@ -57,6 +57,11 @@ CREATE TABLE IF NOT EXISTS live_schedules (
 `);
 
 const q = (sql) => db.prepare(sql);
+// Media folders (added after v1: create/upgrade in place).
+db.exec('CREATE TABLE IF NOT EXISTS folders (id INTEGER PRIMARY KEY, name TEXT NOT NULL)');
+if (!q("SELECT 1 FROM pragma_table_info('media') WHERE name='folder_id'").get()) {
+  db.exec('ALTER TABLE media ADD COLUMN folder_id INTEGER REFERENCES folders(id) ON DELETE SET NULL');
+}
 const getSetting = (k) => q('SELECT value FROM settings WHERE key=?').get(k)?.value ?? null;
 const setSetting = (k, v) => q('INSERT INTO settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').run(k, String(v));
 // Short TV links, easy to type with a remote: no 0/o or 1/l/i.
@@ -239,7 +244,8 @@ app.get('/api/state', requireAdmin, (req, res) => {
     items: q('SELECT media_id, duration, muted FROM playlist_items WHERE playlist_id=? ORDER BY position').all(p.id)
       .map((i) => ({ ...i, muted: !!i.muted })),
   }));
-  res.json({ stores, media, playlists, timezone: getSetting('timezone'), serverTime: Date.now() });
+  const folders = q('SELECT * FROM folders ORDER BY name COLLATE NOCASE').all();
+  res.json({ stores, media, folders, playlists, timezone: getSetting('timezone'), serverTime: Date.now() });
 });
 
 // ---- media
@@ -255,21 +261,49 @@ const upload = multer({
   limits: { fileSize: MAX_UPLOAD_MB * 1024 * 1024 },
   fileFilter: (req, file, cb) => cb(null, !!ALLOWED[file.mimetype]),
 });
+const folderOrNull = (v) => (v && q('SELECT 1 FROM folders WHERE id=?').get(Number(v)) ? Number(v) : null);
 app.post('/api/media', requireAdmin, upload.array('files', 50), (req, res) => {
+  const folder = folderOrNull(req.query.folder);
   const added = (req.files || []).map((f) => {
     const type = f.mimetype.startsWith('video/') ? 'video' : 'image';
     const name = Buffer.from(f.originalname, 'latin1').toString('utf8');
-    q('INSERT INTO media(filename, original_name, type, mime, size, created) VALUES(?,?,?,?,?,?)')
-      .run(f.filename, name, type, f.mimetype, f.size, Date.now());
+    q('INSERT INTO media(filename, original_name, type, mime, size, created, folder_id) VALUES(?,?,?,?,?,?,?)')
+      .run(f.filename, name, type, f.mimetype, f.size, Date.now(), folder);
     return name;
   });
   if (!added.length) return res.status(400).json({ error: 'No supported files. Use JPG, PNG, WEBP, GIF, MP4, WEBM or MOV.' });
   res.json({ ok: true, added });
 });
 app.patch('/api/media/:id', requireAdmin, (req, res) => {
+  const m = q('SELECT * FROM media WHERE id=?').get(req.params.id);
+  if (!m) return res.status(404).json({ error: 'Not found' });
+  let name = m.original_name, folder = m.folder_id;
+  if (req.body.name !== undefined) {
+    name = String(req.body.name).trim();
+    if (!name) return res.status(400).json({ error: 'Name required' });
+  }
+  if (req.body.folder_id !== undefined) {
+    folder = folderOrNull(req.body.folder_id);
+    if (req.body.folder_id && !folder) return res.status(400).json({ error: 'Unknown folder' });
+  }
+  q('UPDATE media SET original_name=?, folder_id=? WHERE id=?').run(name, folder, m.id);
+  res.json({ ok: true });
+});
+
+// ---- media folders (deleting a folder keeps its files: they become "No folder")
+app.post('/api/folders', requireAdmin, (req, res) => {
   const name = String(req.body.name || '').trim();
-  if (!name) return res.status(400).json({ error: 'Name required' });
-  q('UPDATE media SET original_name=? WHERE id=?').run(name, req.params.id);
+  if (!name) return res.status(400).json({ error: 'Folder name required' });
+  res.json({ id: Number(q('INSERT INTO folders(name) VALUES(?)').run(name).lastInsertRowid) });
+});
+app.patch('/api/folders/:id', requireAdmin, (req, res) => {
+  const name = String(req.body.name || '').trim();
+  if (!name) return res.status(400).json({ error: 'Folder name required' });
+  q('UPDATE folders SET name=? WHERE id=?').run(name, req.params.id);
+  res.json({ ok: true });
+});
+app.delete('/api/folders/:id', requireAdmin, (req, res) => {
+  q('DELETE FROM folders WHERE id=?').run(req.params.id);
   res.json({ ok: true });
 });
 app.delete('/api/media/:id', requireAdmin, (req, res) => {
