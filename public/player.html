@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TV Player</title>
+<link rel="stylesheet" href="/static/player.css">
+</head>
+<body>
+  <div id="stage">
+    <img class="layer" id="imgA" alt="">
+    <img class="layer" id="imgB" alt="">
+    <video class="layer" id="vid" playsinline preload="auto"></video>
+  </div>
+  <div id="message" class="screen hidden">
+    <div class="msg-store" id="msgStore"></div>
+    <div class="msg-tv" id="msgTv"></div>
+    <div class="msg-text" id="msgText"></div>
+  </div>
+  <div id="blackout" class="hidden"></div>
+  <div id="offline" class="hidden">Offline, showing saved content</div>
+  <script src="/static/player.js"></script>
+</body>
+</html>

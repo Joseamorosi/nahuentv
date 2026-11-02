@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Store Signage</title>
+<link rel="stylesheet" href="/static/admin.css">
+</head>
+<body>
+  <!-- Login / first-time setup -->
+  <section id="auth" class="auth hidden">
+    <form id="authForm" class="auth-card">
+      <h1>Store Signage</h1>
+      <p id="authHint"></p>
+      <input id="authPassword" type="password" autocomplete="current-password" placeholder="Password" required>
+      <input id="authPassword2" type="password" autocomplete="new-password" placeholder="Repeat password" class="hidden">
+      <button type="submit" class="btn primary" id="authBtn">Log in</button>
+      <p id="authError" class="error"></p>
+    </form>
+  </section>
+
+  <!-- Main app -->
+  <section id="app" class="hidden">
+    <header class="topbar">
+      <div class="brand">Store Signage</div>
+      <nav class="tabs">
+        <button data-tab="screens" class="active">Screens</button>
+        <button data-tab="playlists">Playlists</button>
+        <button data-tab="media">Media</button>
+        <button data-tab="settings">Settings</button>
+      </nav>
+      <button class="btn ghost small" id="logoutBtn">Log out</button>
+    </header>
+
+    <main>
+      <div id="tab-screens" class="tab"></div>
+      <div id="tab-playlists" class="tab hidden"></div>
+      <div id="tab-media" class="tab hidden"></div>
+      <div id="tab-settings" class="tab hidden"></div>
+    </main>
+  </section>
+
+  <dialog id="dialog"><form method="dialog" id="dialogBody"></form></dialog>
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="/static/admin.js"></script>
+</body>
+</html>

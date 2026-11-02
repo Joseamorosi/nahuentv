@@ -1,0 +1,17 @@
+{
+  "name": "store-signage",
+  "version": "1.0.0",
+  "description": "Remote control of TV slideshows, videos and live TV across multiple stores",
+  "main": "server.js",
+  "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning server.js"
+  },
+  "dependencies": {
+    "express": "^4.22.3",
+    "multer": "^2.5.0"
+  },
+  "private": true,
+  "engines": {
+    "node": ">=22.13"
+  }
+}
