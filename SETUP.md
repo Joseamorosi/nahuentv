@@ -23,9 +23,9 @@ This guide takes you from nothing to all 16 TVs running and controlled from your
 3. Choose:
    - **Region:** New York or Atlanta (closest to Florida)
    - **Image:** Ubuntu **24.04 (LTS)**
-   - **Size:** Basic → Regular → **2 GB RAM / 1 CPU** (about $12/month)
+   - **Size:** Basic → Regular → **1 GB RAM / 1 CPU** (about $6/month). You can resize later if you need more space for videos.
    - **Authentication:** Password. Choose a strong one and **save it in a safe place**.
-   - **Backups:** turn **on** (about $2/month)
+   - **Backups:** turn **on** (about $1.20/month)
    - **Hostname:** `nahuentv`
 4. Click **Create Droplet**. After about a minute you'll see its **IP address** (for example `143.198.10.20`). Write it down.
 

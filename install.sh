@@ -19,6 +19,14 @@ SRC="$(cd "$(dirname "$0")" && pwd)"
 
 if [ "$(id -u)" -ne 0 ]; then echo "Please run with sudo:  sudo bash install.sh $DOMAIN"; exit 1; fi
 
+# Small servers (1 GB RAM): add 1 GB of swap so installs/updates never run out of memory.
+MEM_MB="$(awk '/MemTotal/ {print int($2/1024)}' /proc/meminfo)"
+if [ "$MEM_MB" -lt 1900 ] && ! swapon --show | grep -q .; then
+  echo "==> Adding 1 GB swap (small server)"
+  fallocate -l 1G /swapfile && chmod 600 /swapfile && mkswap /swapfile >/dev/null && swapon /swapfile
+  grep -q '^/swapfile' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
+fi
+
 echo "==> Installing system packages"
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -y
