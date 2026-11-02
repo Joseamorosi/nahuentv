@@ -129,6 +129,8 @@ main { max-width: 1200px; margin: 0 auto; padding: 20px 16px 60px; }
 .media-card .actions { flex-wrap: wrap; }
 .media-card .actions select { flex: 1 1 100%; padding: 4px 6px; }
 
+.log { background: #111827; color: #e5e7eb; padding: 10px; border-radius: 8px; font-size: 12px; max-height: 260px; overflow: auto; white-space: pre-wrap; margin: 12px 0 0; }
+
 /* schedule */
 .sched-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 0; border-bottom: 1px solid var(--line); }
 .days { display: flex; gap: 3px; }

@@ -63,13 +63,9 @@ No web address yet? Leave it off: `bash install.sh`. You can run it again with a
 
 When it finishes, it prints the address to open. Open it in your browser and **create your control panel password**.
 
-> **Updating later** (after changes are pushed to GitHub): log in to the server and run
+> **Updating later:** in the control panel, go to **Settings → Software update** and click **Update now**. It shows whether a newer version is available, installs it in 1–3 minutes, and reloads the page when done. Your media, playlists, settings and web address are kept.
 >
-> ```bash
-> cd ~/nahuentv && git pull && bash install.sh
-> ```
->
-> Your media, playlists, settings and web address are kept.
+> If the button ever can't run, the manual way still works: in the Droplet Console run `cd ~/nahuentv && git pull && bash install.sh`.
 
 ## Part 4: Set up a Fire TV Stick
 

@@ -90,7 +90,46 @@ $SITE {
 }
 EOF
 
+# Version shown in the control panel, and the "Update now" button's helper.
+# The app can't run admin commands; it only creates $DATA_DIR/update-requested,
+# and this root service (started by the .path unit) runs the update.
+if git -C "$SRC" rev-parse HEAD >/dev/null 2>&1; then
+  REPO_SLUG="$(git -C "$SRC" remote get-url origin | sed -E 's#(\.git)?$##; s#.*github\.com[:/]##')"
+  echo "$(git -C "$SRC" log -1 --format='%H %cI') $REPO_SLUG" > "$APP_DIR/VERSION"
+  cat > /usr/local/bin/nahuentv-update <<EOF
+#!/usr/bin/env bash
+LOG=$DATA_DIR/update.log
+{
+  echo "STARTED \$(date -Is)"
+  cd "$SRC" && git pull --ff-only && bash install.sh && echo "DONE \$(date -Is)" || echo "FAILED \$(date -Is)"
+} > "\$LOG" 2>&1
+EOF
+  chmod 755 /usr/local/bin/nahuentv-update
+  cat > /etc/systemd/system/nahuentv-update.service <<EOF
+[Unit]
+Description=NahuenTV update (requested from the control panel)
+
+[Service]
+Type=oneshot
+Environment=HOME=/root
+TimeoutStartSec=20min
+ExecStartPre=/bin/rm -f $DATA_DIR/update-requested
+ExecStart=/usr/local/bin/nahuentv-update
+EOF
+  cat > /etc/systemd/system/nahuentv-update.path <<EOF
+[Unit]
+Description=Watch for update requests from the NahuenTV control panel
+
+[Path]
+PathExists=$DATA_DIR/update-requested
+
+[Install]
+WantedBy=multi-user.target
+EOF
+fi
+
 systemctl daemon-reload
+if [ -f /etc/systemd/system/nahuentv-update.path ]; then systemctl enable --now nahuentv-update.path; fi
 systemctl enable --now nahuentv
 systemctl restart nahuentv
 systemctl enable caddy

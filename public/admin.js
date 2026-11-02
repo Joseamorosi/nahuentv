@@ -729,6 +729,46 @@
   });
 
   // ------------------------------------------------------------ SETTINGS
+  function showUpdateLog(text) { const el = $('#updLog'); if (el) { el.textContent = text; el.classList.remove('hidden'); } }
+  async function loadUpdateInfo() {
+    let u;
+    try { u = await api('GET', '/api/update?check=1'); } catch (e) { if ($('#updInfo')) $('#updInfo').textContent = 'Could not check for updates.'; return; }
+    const info = $('#updInfo'), btn = $('#updBtn');
+    if (!info) return; // left the Settings tab
+    if (!u.supported) { info.textContent = 'The Update button is not set up yet. Run the update command in the Droplet Console one more time to turn it on.'; return; }
+    const upToDate = u.latest && u.latest.commit === u.installed.commit;
+    info.innerHTML = `Installed version: <b>${esc(u.installed.commit.slice(0, 7))}</b> (${esc(new Date(u.installed.date).toLocaleDateString())})<br>`
+      + (!u.latest ? 'Could not reach GitHub to check for a newer version.'
+        : upToDate ? '✅ You have the latest version.'
+          : `🆕 <b>Update available:</b> ${esc(u.latest.message)} (${esc(new Date(u.latest.date).toLocaleDateString())})`);
+    btn.disabled = false;
+    btn.textContent = upToDate ? 'Reinstall latest version' : 'Update now';
+    if (u.state === 'failed') { info.innerHTML += '<br><span class="error">The last update failed. Details below.</span>'; showUpdateLog(u.logTail); }
+  }
+  async function runUpdate() {
+    if (!confirm('Install the latest version now? It takes 1–3 minutes. The TVs keep playing and reload by themselves when it finishes.')) return;
+    const btn = $('#updBtn'), info = $('#updInfo');
+    let t0;
+    try { t0 = (await api('POST', '/api/update')).serverTime; } catch (err) { fail(err); return; }
+    btn.disabled = true; btn.textContent = 'Updating…';
+    info.textContent = 'Updating… this takes 1–3 minutes. Keep this page open; it reloads by itself when done.';
+    const began = Date.now();
+    const poll = async () => {
+      let u = null;
+      try { u = await api('GET', '/api/update'); } catch (e) { /* server restarting during the update */ }
+      if (u && u.startedAt && Date.parse(u.startedAt) >= t0 - 2000) {
+        if (u.state === 'done') { toast('Update installed. Reloading…'); setTimeout(() => location.reload(), 1500); return; }
+        if (u.state === 'failed') {
+          info.innerHTML = '<span class="error">The update failed. Your TVs keep working on the old version. Send me a screenshot of the details below.</span>';
+          showUpdateLog(u.logTail); btn.disabled = false; btn.textContent = 'Try again'; return;
+        }
+      }
+      if (Date.now() - began > 15 * 60 * 1000) { info.textContent = 'The update has not finished after 15 minutes. Reload this page to check again.'; btn.disabled = false; return; }
+      setTimeout(poll, 4000);
+    };
+    setTimeout(poll, 4000);
+  }
+
   function renderSettings() {
     const zones = ['America/New_York', 'America/Chicago', 'America/Denver', 'America/Phoenix', 'America/Los_Angeles', 'America/Anchorage', 'Pacific/Honolulu', 'America/Puerto_Rico'];
     if (!zones.includes(S.timezone)) zones.unshift(S.timezone);
@@ -744,6 +784,12 @@
         <h3>Stores</h3>
         <p class="muted small">${S.stores.map((s) => `${esc(s.name)} (${s.tvs.length} TVs)`).join(' · ')}</p>
         <button class="btn" id="addStore">+ Add a store</button>
+      </div>
+      <div class="card">
+        <h3>Software update</h3>
+        <p class="small" id="updInfo">Checking for updates…</p>
+        <button class="btn primary" id="updBtn" disabled>Update now</button>
+        <pre class="log hidden" id="updLog"></pre>
       </div>
       <div class="card">
         <h3>Change password</h3>
@@ -762,6 +808,8 @@
           <li>Within a few seconds the TV shows its name (or its playlist) and turns green here.</li>
         </ol>
       </div>`;
+    loadUpdateInfo();
+    $('#updBtn').onclick = runUpdate;
     $('#saveTz').onclick = async () => { try { await api('PUT', '/api/settings', { timezone: $('#tz').value }); toast('Saved'); await refresh(); } catch (err) { fail(err); } };
     $('#addStore').onclick = async () => {
       const name = prompt('Store name:');

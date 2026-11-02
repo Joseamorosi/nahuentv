@@ -413,6 +413,43 @@ app.delete('/api/tvs/:id', requireAdmin, (req, res) => {
   q('DELETE FROM tvs WHERE id=?').run(req.params.id);
   res.json({ ok: true });
 });
+// ---- software update ("Update now" button; the installer sets up the helper that does the work)
+const UPDATE_FLAG = path.join(DATA_DIR, 'update-requested');
+const UPDATE_LOG = path.join(DATA_DIR, 'update.log');
+function installedVersion() {
+  try {
+    const [commit, date, repo] = fs.readFileSync(path.join(__dirname, 'VERSION'), 'utf8').trim().split(' ');
+    return commit && repo ? { commit, date, repo } : null;
+  } catch { return null; }
+}
+app.get('/api/update', requireAdmin, async (req, res) => {
+  const installed = installedVersion();
+  let latest = null;
+  if (installed && req.query.check) { // only on request: GitHub allows 60 unauthenticated checks per hour
+    try {
+      const r = await fetch(`https://api.github.com/repos/${installed.repo}/commits/main`, {
+        headers: { 'User-Agent': 'nahuentv', Accept: 'application/vnd.github+json' }, signal: AbortSignal.timeout(6000),
+      });
+      if (r.ok) { const j = await r.json(); latest = { commit: j.sha, date: j.commit.committer.date, message: j.commit.message.split('\n')[0] }; }
+    } catch { /* offline or rate-limited: show "could not check" */ }
+  }
+  let lines = [];
+  try { lines = fs.readFileSync(UPDATE_LOG, 'utf8').trim().split('\n'); } catch { /* never updated */ }
+  const last = lines[lines.length - 1] || '';
+  const state = fs.existsSync(UPDATE_FLAG) ? 'requested' : !lines.length ? 'never'
+    : last.startsWith('DONE') ? 'done' : last.startsWith('FAILED') ? 'failed' : 'running';
+  res.json({
+    supported: !!installed, installed, latest, state,
+    startedAt: (lines[0] || '').startsWith('STARTED ') ? lines[0].slice(8) : null,
+    logTail: lines.slice(-20).join('\n'), serverTime: Date.now(),
+  });
+});
+app.post('/api/update', requireAdmin, (req, res) => {
+  if (!installedVersion()) return res.status(400).json({ error: 'The Update button is not set up on this server yet. Run the update command in the Droplet Console once.' });
+  fs.writeFileSync(UPDATE_FLAG, String(Date.now()));
+  res.json({ ok: true, serverTime: Date.now() });
+});
+
 app.put('/api/settings', requireAdmin, (req, res) => {
   const tz = String(req.body.timezone || '');
   try { new Intl.DateTimeFormat('en-US', { timeZone: tz }); } catch { return res.status(400).json({ error: 'Unknown time zone' }); }
