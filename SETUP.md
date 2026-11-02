@@ -43,7 +43,7 @@ A web address such as `signage.yourstore.com` gives you:
 
 ## Part 3: Install the software
 
-The server downloads the code from your private GitHub repository, [Joseamorosi/nahuentv](https://github.com/Joseamorosi/nahuentv).
+The server downloads the code from your GitHub repository, [Joseamorosi/nahuentv](https://github.com/Joseamorosi/nahuentv).
 
 **3.1 Log in to the server.** On your computer, open a terminal (Mac: *Terminal*; Windows: *PowerShell*). Replace `YOUR_IP` with the Droplet's IP:
 
@@ -53,24 +53,13 @@ ssh root@YOUR_IP
 
 Type `yes` if asked, then enter the Droplet password. **Everything below runs on the server.**
 
-**3.2 Give the server permission to read your repository.** Create a key for the server:
+**3.2 Download and install** (use your own web address):
 
 ```bash
-ssh-keygen -t ed25519 -N "" -f ~/.ssh/id_ed25519 && cat ~/.ssh/id_ed25519.pub
+git clone https://github.com/Joseamorosi/nahuentv.git && cd nahuentv && bash install.sh signage.yourstore.com
 ```
 
-Copy the line it prints (it starts with `ssh-ed25519`). Then:
-- Open [https://github.com/Joseamorosi/nahuentv/settings/keys/new](https://github.com/Joseamorosi/nahuentv/settings/keys/new)
-- **Title:** `DigitalOcean server` · **Key:** paste the line · leave *Allow write access* **unchecked**
-- Click **Add key**
-
-**3.3 Download and install** (use your own web address):
-
-```bash
-git clone git@github.com:Joseamorosi/nahuentv.git && cd nahuentv && bash install.sh signage.yourstore.com
-```
-
-Type `yes` if it asks about GitHub's fingerprint. No web address yet? Leave it off: `bash install.sh`. You can run it again with an address later.
+No web address yet? Leave it off: `bash install.sh`. You can run it again with an address later.
 
 When it finishes, it prints the address to open. Open it in your browser and **create your control panel password**.
 
