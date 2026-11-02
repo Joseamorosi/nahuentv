@@ -444,6 +444,10 @@
       </div>
       <p class="muted small">Showing on: ${tvs.length ? tvs.map((t) => esc(`${t.store} ${t.name}`)).join(', ') : 'no TVs yet (assign it on the Screens tab)'}<br>
       Loop length: ${Math.floor(total / 60)}m ${total % 60}s${hasVideo ? ' plus videos' : ''}</p>
+      ${imageItems().length ? `<div class="row">Seconds per image:
+        <input type="number" min="1" max="3600" id="bulkDur" value="${defaultDuration()}" aria-label="Seconds per image for the whole playlist">
+        <button type="button" class="btn small" id="applyDur">Apply to all images</button>
+        <span class="muted small">You can still change single images below.</span></div>` : ''}
       <ul class="items" id="plItems">${items || '<li class="muted">Empty. Add images or videos below.</li>'}</ul>
       <div class="row spread">
         <div class="row">
@@ -487,6 +491,13 @@
     const rm = t.closest('[data-remove]');
     if (rm) { draft.items.splice(Number(rm.dataset.remove), 1); dirty = true; rerenderEditor(); return; }
     if (t.closest('#plAdd')) { mediaPicker(); return; }
+    if (t.closest('#applyDur')) {
+      const v = Math.min(3600, Math.max(1, Math.round(Number($('#bulkDur').value) || 10)));
+      imageItems().forEach((it) => { it.duration = v; });
+      dirty = true; rerenderEditor();
+      toast(`All images set to ${v} seconds. Click Save to send to TVs`);
+      return;
+    }
     if (t.closest('#plDelete')) {
       const n = usedOn(draft.id).length;
       if (!confirm(`Delete "${draft.name}"?${n ? ` ${n} TVs are showing it and will go back to showing their name.` : ''}`)) return;
@@ -530,24 +541,59 @@
 
   function mediaPicker() {
     if (!S.media.length) { toast('Upload images or videos on the Media tab first', true); return; }
-    let added = 0;
+    const picked = []; // media ids, in the order clicked
     const body = openDialog(`
-      <div class="row spread"><h2>Add to "${esc(draft.name)}"</h2><button type="button" class="btn primary" id="pickDone">Done</button></div>
-      <p class="muted small">Click an item to add it to the end of the playlist. You can add the same item more than once.</p>
+      <div class="row spread"><h2>Add to "${esc(draft.name)}"</h2>
+        <div class="row">
+          <button type="button" class="btn small" id="pickAll">Select all</button>
+          <button type="button" class="btn" id="pickCancel">Cancel</button>
+          <button type="button" class="btn primary" id="pickDone" disabled>Add selected</button>
+        </div></div>
+      <p class="muted small">Click to select, click again to unselect. Items are added in the order you select them.</p>
       <div class="media-grid picker">${S.media.map((m) => `
-        <div class="media-card" data-pick="${m.id}">${thumbHtml(m, 'preview')}
+        <div class="media-card" data-pick="${m.id}" role="button" tabindex="0" aria-pressed="false">${thumbHtml(m, 'preview')}
+          <span class="pick-badge"></span>
           <div class="info"><span class="title">${esc(m.original_name)}</span><span class="muted small">${m.type === 'video' ? '🎬 Video' : '🖼 Image'}</span></div>
         </div>`).join('')}</div>`, true);
+    const show = () => {
+      $$('[data-pick]', body).forEach((c) => {
+        const n = picked.indexOf(Number(c.dataset.pick));
+        c.classList.toggle('selected', n >= 0);
+        c.setAttribute('aria-pressed', String(n >= 0));
+        c.querySelector('.pick-badge').textContent = n >= 0 ? n + 1 : '';
+      });
+      $('#pickDone', body).disabled = !picked.length;
+      $('#pickDone', body).textContent = picked.length ? `Add ${picked.length} selected` : 'Add selected';
+      $('#pickAll', body).textContent = picked.length === S.media.length ? 'Clear selection' : 'Select all';
+    };
     body.onclick = (e) => {
       const card = e.target.closest('[data-pick]');
       if (card) {
-        draft.items.push({ media_id: Number(card.dataset.pick), duration: 10, muted: true });
-        added++; dirty = true; toast(`Added (${added})`);
+        const id = Number(card.dataset.pick), i = picked.indexOf(id);
+        if (i >= 0) picked.splice(i, 1); else picked.push(id);
+        show();
+      } else if (e.target.closest('#pickAll')) {
+        if (picked.length === S.media.length) picked.length = 0;
+        else S.media.forEach((m) => { if (!picked.includes(m.id)) picked.push(m.id); });
+        show();
+      } else if (e.target.closest('#pickCancel')) {
+        closeDialog();
+      } else if (e.target.closest('#pickDone')) {
+        const dur = defaultDuration();
+        picked.forEach((id) => draft.items.push({ media_id: id, duration: dur, muted: true }));
+        dirty = true; closeDialog(); rerenderEditor();
+        toast(`Added ${picked.length} item(s). Click Save to send to TVs`);
       }
-      if (e.target.closest('#pickDone')) { closeDialog(); }
     };
-    dlg.addEventListener('close', () => { body.onclick = null; if (added) rerenderEditor(); }, { once: true });
+    body.onkeydown = (e) => {
+      if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[data-pick]')) { e.preventDefault(); e.target.click(); }
+    };
+    dlg.addEventListener('close', () => { body.onclick = null; body.onkeydown = null; }, { once: true });
   }
+
+  const imageItems = () => draft.items.filter((it) => mediaById(it.media_id)?.type !== 'video');
+  // New images use the same time as the last image in the playlist.
+  function defaultDuration() { const imgs = imageItems(); return imgs.length ? imgs[imgs.length - 1].duration : 10; }
 
   // ------------------------------------------------------------ MEDIA
   function renderMedia() {

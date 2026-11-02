@@ -100,7 +100,7 @@ main { max-width: 1200px; margin: 0 auto; padding: 20px 16px 60px; }
 
 /* media */
 .drop {
-  border: 2px dashed #cbd5e1; border-radius: var(--radius); padding: 26px; text-align: center; background: #fff; cursor: pointer;
+  display: block; border: 2px dashed #cbd5e1; border-radius: var(--radius); padding: 26px; text-align: center; background: #fff; cursor: pointer;
 }
 .drop.over { border-color: var(--primary); background: #eff6ff; }
 .progress { height: 8px; background: #e5e7eb; border-radius: 4px; overflow: hidden; margin-top: 12px; }
@@ -111,8 +111,15 @@ main { max-width: 1200px; margin: 0 auto; padding: 20px 16px 60px; }
 .media-card .info { padding: 8px 10px; display: flex; flex-direction: column; gap: 4px; flex: 1; }
 .media-card .title { font-weight: 600; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .media-card .actions { display: flex; gap: 6px; padding: 0 10px 10px; }
-.picker .media-card { cursor: pointer; }
-.picker .media-card:hover { outline: 2px solid var(--primary); }
+.picker .media-card { cursor: pointer; position: relative; }
+.picker .media-card.selected { outline: 3px solid var(--primary); outline-offset: -3px; background: #eff6ff; }
+.pick-badge {
+  position: absolute; top: 8px; right: 8px; width: 28px; height: 28px; border-radius: 50%;
+  border: 2px solid #fff; background: rgba(0,0,0,.35); color: #fff; font-weight: 700; font-size: 14px;
+  display: flex; align-items: center; justify-content: center;
+}
+.selected .pick-badge { background: var(--primary); }
+.picker .media-card:hover { outline: 2px solid #bfdbfe; }
 
 /* schedule */
 .sched-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 0; border-bottom: 1px solid var(--line); }
