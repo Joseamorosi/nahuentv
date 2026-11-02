@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Store Signage installer for a fresh Ubuntu 22.04 / 24.04 server.
+# NahuenTV installer for a fresh Ubuntu 22.04 / 24.04 server.
 #
 #   With your own web address (recommended, enables https + offline mode on the TVs):
 #     sudo bash install.sh signage.yourstore.com
@@ -12,9 +12,9 @@ set -euo pipefail
 
 DOMAIN="${1:-}"
 # Remember the web address so updates can just run "sudo bash install.sh".
-if [ -z "$DOMAIN" ] && [ -f /etc/store-signage-domain ]; then DOMAIN="$(cat /etc/store-signage-domain)"; fi
-APP_DIR=/opt/store-signage
-DATA_DIR=/var/lib/store-signage
+if [ -z "$DOMAIN" ] && [ -f /etc/nahuentv-domain ]; then DOMAIN="$(cat /etc/nahuentv-domain)"; fi
+APP_DIR=/opt/nahuentv
+DATA_DIR=/var/lib/nahuentv
 SRC="$(cd "$(dirname "$0")" && pwd)"
 
 if [ "$(id -u)" -ne 0 ]; then echo "Please run with sudo:  sudo bash install.sh $DOMAIN"; exit 1; fi
@@ -40,23 +40,23 @@ if ! command -v caddy >/dev/null; then
   apt-get install -y caddy
 fi
 
-echo "==> Installing the Store Signage app"
-id signage >/dev/null 2>&1 || useradd --system --home "$DATA_DIR" --shell /usr/sbin/nologin signage
+echo "==> Installing the NahuenTV app"
+id nahuentv >/dev/null 2>&1 || useradd --system --home "$DATA_DIR" --shell /usr/sbin/nologin nahuentv
 mkdir -p "$APP_DIR" "$DATA_DIR"
 if [ "$SRC" != "$APP_DIR" ]; then
   rsync -a --delete --exclude node_modules --exclude data --exclude '*.zip' --exclude .git "$SRC/" "$APP_DIR/"
 fi
 cd "$APP_DIR"
 npm ci --omit=dev --no-audit --no-fund
-chown -R signage:signage "$DATA_DIR"
+chown -R nahuentv:nahuentv "$DATA_DIR"
 
-cat > /etc/systemd/system/store-signage.service <<EOF
+cat > /etc/systemd/system/nahuentv.service <<EOF
 [Unit]
-Description=Store Signage
+Description=NahuenTV
 After=network.target
 
 [Service]
-User=signage
+User=nahuentv
 WorkingDirectory=$APP_DIR
 Environment=PORT=3000
 Environment=DATA_DIR=$DATA_DIR
@@ -71,7 +71,7 @@ EOF
 echo "==> Configuring the web server"
 if [ -n "$DOMAIN" ]; then
   SITE="$DOMAIN"
-  echo "$DOMAIN" > /etc/store-signage-domain
+  echo "$DOMAIN" > /etc/nahuentv-domain
 else
   SITE=":80"
 fi
@@ -83,8 +83,8 @@ $SITE {
 EOF
 
 systemctl daemon-reload
-systemctl enable --now store-signage
-systemctl restart store-signage
+systemctl enable --now nahuentv
+systemctl restart nahuentv
 systemctl enable caddy
 systemctl restart caddy
 
@@ -96,11 +96,11 @@ if command -v ufw >/dev/null; then
 fi
 
 sleep 2
-if systemctl is-active --quiet store-signage; then
+if systemctl is-active --quiet nahuentv; then
   IP="$(curl -fsS -4 https://ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}')"
   echo
   echo "============================================================"
-  echo " Store Signage is running!"
+  echo " NahuenTV is running!"
   if [ -n "$DOMAIN" ]; then
     echo " Open:  https://$DOMAIN"
     echo " (The first visit can take up to a minute while the https"
@@ -113,6 +113,6 @@ if systemctl is-active --quiet store-signage; then
   echo "============================================================"
 else
   echo "Something went wrong. Showing the app log:"
-  journalctl -u store-signage -n 40 --no-pager
+  journalctl -u nahuentv -n 40 --no-pager
   exit 1
 fi

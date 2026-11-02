@@ -1,4 +1,4 @@
-// Store Signage — cloud control panel + TV player server.
+// NahuenTV — cloud control panel + TV player server.
 // Run: node --disable-warning=ExperimentalWarning server.js
 'use strict';
 
@@ -417,4 +417,4 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Server error' });
 });
 
-app.listen(PORT, () => console.log(`Store Signage running on http://localhost:${PORT}  (data: ${DATA_DIR})`));
+app.listen(PORT, () => console.log(`NahuenTV running on http://localhost:${PORT}  (data: ${DATA_DIR})`));

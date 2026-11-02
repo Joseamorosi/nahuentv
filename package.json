@@ -1,5 +1,5 @@
 {
-  "name": "store-signage",
+  "name": "nahuentv",
   "version": "1.0.0",
   "description": "Remote control of TV slideshows, videos and live TV across multiple stores",
   "main": "server.js",

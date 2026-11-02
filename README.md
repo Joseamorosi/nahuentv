@@ -1,4 +1,4 @@
-# Store Signage
+# NahuenTV
 
 Control the TVs in all your stores from one web page: slideshows, videos, and live TV switching.
 

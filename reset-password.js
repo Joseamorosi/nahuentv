@@ -1,5 +1,5 @@
 // Reset the control panel password from the server's command line:
-//   sudo node /opt/store-signage/reset-password.js
+//   sudo node /opt/nahuentv/reset-password.js
 'use strict';
 process.removeAllListeners('warning');
 const crypto = require('crypto');
@@ -7,7 +7,7 @@ const path = require('path');
 const readline = require('readline');
 const { DatabaseSync } = require('node:sqlite');
 
-const DATA_DIR = process.env.DATA_DIR || (require('fs').existsSync('/var/lib/store-signage') ? '/var/lib/store-signage' : path.join(__dirname, 'data'));
+const DATA_DIR = process.env.DATA_DIR || (require('fs').existsSync('/var/lib/nahuentv') ? '/var/lib/nahuentv' : path.join(__dirname, 'data'));
 const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 rl.question('New control panel password (8+ characters): ', (pw) => {
   rl.close();

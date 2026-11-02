@@ -1,4 +1,4 @@
-# Store Signage: Setup Guide
+# NahuenTV: Setup Guide
 
 This guide takes you from nothing to all 16 TVs running and controlled from your office.
 
@@ -26,7 +26,7 @@ This guide takes you from nothing to all 16 TVs running and controlled from your
    - **Size:** Basic → Regular → **2 GB RAM / 1 CPU** (about $12/month)
    - **Authentication:** Password. Choose a strong one and **save it in a safe place**.
    - **Backups:** turn **on** (about $2/month)
-   - **Hostname:** `store-signage`
+   - **Hostname:** `nahuentv`
 4. Click **Create Droplet**. After about a minute you'll see its **IP address** (for example `143.198.10.20`). Write it down.
 
 ## Part 2: Web address (recommended)
@@ -173,11 +173,11 @@ TVs pick up changes **within 15 seconds**.
 | A video doesn't play / gets skipped | Re-export it as MP4 (H.264), 1080p. |
 | Video has no sound | Check **Sound** on the item in the playlist, and make sure **Autoplay Videos** is ON in Fully. |
 | Fire TV home screen shows instead of the player | Check **Launch on Boot** in Fully. Open Fully once manually. |
-| Can't open the control panel | Check the Droplet is running in DigitalOcean. On the server: `systemctl status store-signage`. |
-| Forgot the control panel password | Log in to the server (`ssh root@YOUR_IP`) and run `node /opt/store-signage/reset-password.js`. It asks for a new password. |
+| Can't open the control panel | Check the Droplet is running in DigitalOcean. On the server: `systemctl status nahuentv`. |
+| Forgot the control panel password | Log in to the server (`ssh root@YOUR_IP`) and run `node /opt/nahuentv/reset-password.js`. It asks for a new password. |
 
 ## Where things are stored on the server
 
-- App: `/opt/store-signage`
-- Your media, playlists and settings: `/var/lib/store-signage`. This is included in DigitalOcean backups.
-- App log: `journalctl -u store-signage -n 100`
+- App: `/opt/nahuentv`
+- Your media, playlists and settings: `/var/lib/nahuentv`. This is included in DigitalOcean backups.
+- App log: `journalctl -u nahuentv -n 100`
