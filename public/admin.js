@@ -614,8 +614,36 @@
       `<button type="button" class="chip ${v === sel ? 'active' : ''}" data-${attr}="${v}">${esc(label)} <span class="count">${S.media.filter((m) => inFolder(m, v)).length}</span></button>`).join('');
   }
 
+  const mediaSel = new Set(); // selected media ids on the Media tab
+  const shownMedia = () => S.media.filter((m) => inFolder(m, mediaFolder));
+  function renderSelBar() {
+    const bar = $('#selBar');
+    if (!bar) return;
+    const shown = shownMedia();
+    const n = mediaSel.size;
+    const all = shown.length > 0 && shown.every((m) => mediaSel.has(m.id));
+    bar.innerHTML = !shown.length ? '' : `
+      <button type="button" class="btn small" id="selAll">${all ? 'Clear selection' : `Select all (${shown.length})`}</button>
+      ${n ? `<b>${n} selected</b>
+        <select id="selMove" aria-label="Move selected files to a folder">
+          <option value="">Move to folder…</option><option value="none">No folder</option>
+          ${S.folders.map((f) => `<option value="${f.id}">📁 ${esc(f.name)}</option>`).join('')}
+        </select>
+        <button type="button" class="btn small danger" id="selDelete">Delete selected</button>
+        ${all ? '' : '<button type="button" class="btn small ghost" id="selClear">Clear selection</button>'}`
+      : '<span class="muted small">Tip: click pictures to select several at once.</span>'}`;
+    $$('#tab-media [data-card]').forEach((c) => {
+      const on = mediaSel.has(Number(c.dataset.card));
+      c.classList.toggle('selected', on);
+      c.querySelector('.sel-check').setAttribute('aria-pressed', String(on));
+    });
+  }
+
   function renderMedia() {
     if (typeof mediaFolder === 'number' && !S.folders.some((f) => f.id === mediaFolder)) mediaFolder = 'all';
+    // keep only selections that still exist and are visible in this folder
+    const visibleIds = new Set(shownMedia().map((m) => m.id));
+    [...mediaSel].forEach((id) => { if (!visibleIds.has(id)) mediaSel.delete(id); });
     const uses = (mid) => S.playlists.filter((p) => p.items.some((i) => i.media_id === mid)).length;
     const folder = S.folders.find((f) => f.id === mediaFolder);
     const shown = S.media.filter((m) => inFolder(m, mediaFolder));
@@ -624,6 +652,7 @@
     $('#tab-media').innerHTML = `
       <div class="bar"><h2>Media library</h2><span class="muted">${S.media.length} files</span></div>
       <div class="row folders">${folderChips(mediaFolder, 'folder')}<button type="button" class="btn small" id="newFolder">+ New folder</button></div>
+      <div class="row folders" id="selBar"></div>
       ${folder ? `<div class="row folders"><b>📁 ${esc(folder.name)}</b>
         <button type="button" class="btn small" id="renameFolder">Rename folder</button>
         <button type="button" class="btn small danger" id="deleteFolder">Delete folder</button></div>` : ''}
@@ -637,8 +666,9 @@
       </label>
       ${shown.length ? '' : '<p class="muted">No files here yet.</p>'}
       <div class="media-grid">${shown.map((m) => `
-        <div class="media-card">
-          ${m.type === 'video' ? `<video class="preview" src="${esc(m.url)}#t=1" preload="metadata" muted playsinline controls></video>` : `<img class="preview" src="${esc(m.url)}" loading="lazy" alt="">`}
+        <div class="media-card" data-card="${m.id}">
+          <button type="button" class="sel-check" data-sel="${m.id}" aria-pressed="false" aria-label="Select ${esc(m.original_name)}">✓</button>
+          ${m.type === 'video' ? `<video class="preview" src="${esc(m.url)}#t=1" preload="metadata" muted playsinline controls></video>` : `<img class="preview" src="${esc(m.url)}" loading="lazy" alt="" data-sel="${m.id}">`}
           <div class="info">
             <span class="title" title="${esc(m.original_name)}">${esc(m.original_name)}</span>
             <span class="muted small">${m.type === 'video' ? '🎬 Video' : '🖼 Image'} · ${fmtSize(m.size)} · in ${uses(m.id)} playlists</span>
@@ -650,6 +680,7 @@
           </div>
         </div>`).join('')}</div>`;
 
+    renderSelBar();
     const drop = $('#drop');
     $('#fileInput').onchange = (e) => uploadFiles(e.target.files);
     drop.ondragover = (e) => { e.preventDefault(); drop.classList.add('over'); };
@@ -684,6 +715,16 @@
   }
 
   $('#tab-media').addEventListener('change', async (e) => {
+    if (e.target.id === 'selMove' && e.target.value) {
+      const v = e.target.value, ids = [...mediaSel];
+      const folderId = v === 'none' ? null : Number(v);
+      try {
+        await Promise.all(ids.map((id) => api('PATCH', `/api/media/${id}`, { folder_id: folderId })));
+        toast(`Moved ${ids.length} file(s) to ${v === 'none' ? '"No folder"' : S.folders.find((f) => f.id === folderId).name}`);
+        mediaSel.clear(); await refresh();
+      } catch (err) { fail(err); await refresh(); }
+      return;
+    }
     const sel = e.target.closest('[data-mfolder]');
     if (!sel) return;
     try {
@@ -698,7 +739,25 @@
     const del = e.target.closest('[data-delmedia]');
     const chip = e.target.closest('[data-folder]');
     try {
-      if (chip) {
+      const selEl = e.target.closest('[data-sel]');
+      if (selEl) {
+        const id = Number(selEl.dataset.sel);
+        if (mediaSel.has(id)) mediaSel.delete(id); else mediaSel.add(id);
+        renderSelBar();
+      } else if (e.target.closest('#selAll')) {
+        const shown = shownMedia();
+        if (shown.every((m) => mediaSel.has(m.id))) mediaSel.clear(); else shown.forEach((m) => mediaSel.add(m.id));
+        renderSelBar();
+      } else if (e.target.closest('#selClear')) {
+        mediaSel.clear(); renderSelBar();
+      } else if (e.target.closest('#selDelete')) {
+        const ids = [...mediaSel];
+        const pls = S.playlists.filter((p) => p.items.some((i) => ids.includes(i.media_id))).length;
+        if (!confirm(`Delete ${ids.length} file(s)?${pls ? ` They will be removed from ${pls} playlist(s).` : ''} This cannot be undone.`)) return;
+        await Promise.all(ids.map((id) => api('DELETE', `/api/media/${id}`)));
+        mediaSel.clear(); await refresh(); toast(`Deleted ${ids.length} file(s)`);
+      } else if (chip) {
+        mediaSel.clear();
         mediaFolder = parseFolder(chip.dataset.folder);
         renderMedia();
       } else if (e.target.closest('#newFolder')) {

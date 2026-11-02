@@ -131,6 +131,15 @@ main { max-width: 1200px; margin: 0 auto; padding: 20px 16px 60px; }
 
 .log { background: #111827; color: #e5e7eb; padding: 10px; border-radius: 8px; font-size: 12px; max-height: 260px; overflow: auto; white-space: pre-wrap; margin: 12px 0 0; }
 
+.media-card { position: relative; }
+.media-card.selected { outline: 3px solid var(--primary); outline-offset: -3px; background: #eff6ff; }
+#tab-media img.preview { cursor: pointer; }
+.sel-check {
+  position: absolute; top: 8px; left: 8px; z-index: 1; width: 28px; height: 28px; border-radius: 50%;
+  border: 2px solid #fff; background: rgba(0,0,0,.35); color: transparent; font-weight: 700; cursor: pointer; padding: 0;
+}
+.sel-check[aria-pressed="true"] { background: var(--primary); color: #fff; }
+
 /* schedule */
 .sched-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 0; border-bottom: 1px solid var(--line); }
 .days { display: flex; gap: 3px; }
