@@ -59,7 +59,16 @@ CREATE TABLE IF NOT EXISTS live_schedules (
 const q = (sql) => db.prepare(sql);
 const getSetting = (k) => q('SELECT value FROM settings WHERE key=?').get(k)?.value ?? null;
 const setSetting = (k, v) => q('INSERT INTO settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').run(k, String(v));
-const newKey = () => crypto.randomBytes(18).toString('base64url');
+// Short TV links, easy to type with a remote: no 0/o or 1/l/i.
+// shortcut: 6 chars (~30 bits) is guessable only by brute force and a guess just shows a slideshow; lengthen if links ever grant control.
+const KEY_CHARS = 'abcdefghjkmnpqrstuvwxyz23456789';
+function newKey() {
+  for (;;) {
+    let k = '';
+    for (let i = 0; i < 6; i++) k += KEY_CHARS[crypto.randomInt(KEY_CHARS.length)];
+    if (!q('SELECT 1 FROM tvs WHERE key=?').get(k)) return k;
+  }
+}
 
 function tx(fn) {
   db.exec('BEGIN');
@@ -74,6 +83,8 @@ if (!q('SELECT COUNT(*) AS n FROM stores').get().n) {
     for (let n = 1; n <= count; n++) q('INSERT INTO tvs(store_id,name,position,key) VALUES(?,?,?,?)').run(sid, `TV ${n}`, n, newKey());
   }));
 }
+// One-time: swap the long links from the first version for short ones (no sticks were set up yet).
+for (const t of q('SELECT id FROM tvs WHERE length(key) > 6').all()) q('UPDATE tvs SET key=? WHERE id=?').run(newKey(), t.id);
 if (!getSetting('timezone')) setSetting('timezone', 'America/New_York');
 if (!getSetting('session_secret')) setSetting('session_secret', crypto.randomBytes(32).toString('hex'));
 const SESSION_SECRET = getSetting('session_secret');
