@@ -11,6 +11,8 @@
 set -euo pipefail
 
 DOMAIN="${1:-}"
+# Remember the web address so updates can just run "sudo bash install.sh".
+if [ -z "$DOMAIN" ] && [ -f /etc/store-signage-domain ]; then DOMAIN="$(cat /etc/store-signage-domain)"; fi
 APP_DIR=/opt/store-signage
 DATA_DIR=/var/lib/store-signage
 SRC="$(cd "$(dirname "$0")" && pwd)"
@@ -42,7 +44,7 @@ echo "==> Installing the Store Signage app"
 id signage >/dev/null 2>&1 || useradd --system --home "$DATA_DIR" --shell /usr/sbin/nologin signage
 mkdir -p "$APP_DIR" "$DATA_DIR"
 if [ "$SRC" != "$APP_DIR" ]; then
-  rsync -a --delete --exclude node_modules --exclude data --exclude '*.zip' "$SRC/" "$APP_DIR/"
+  rsync -a --delete --exclude node_modules --exclude data --exclude '*.zip' --exclude .git "$SRC/" "$APP_DIR/"
 fi
 cd "$APP_DIR"
 npm ci --omit=dev --no-audit --no-fund
@@ -69,6 +71,7 @@ EOF
 echo "==> Configuring the web server"
 if [ -n "$DOMAIN" ]; then
   SITE="$DOMAIN"
+  echo "$DOMAIN" > /etc/store-signage-domain
 else
   SITE=":80"
 fi
